@@ -18,8 +18,8 @@ from ingestion.data_generator import (
 # Kafka Configuration
 conf = {'bootstrap.servers': os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")}
 producer = Producer(conf)
-PRODUCER_MODE = os.environ.get("PRODUCER_MODE", "random").lower()
-STREAM_DELAY_SECONDS = float(os.environ.get("STREAM_DELAY_SECONDS", "1.0"))
+PRODUCER_MODE = os.environ.get("PRODUCER_MODE", "paysim_replay").lower()
+STREAM_DELAY_SECONDS = float(os.environ.get("STREAM_DELAY_SECONDS", "0.5"))
 SMURFING_INJECTION_RATE = float(os.environ.get("SMURFING_INJECTION_RATE", "0.05"))
 
 def delivery_report(err, msg):

@@ -28,7 +28,7 @@ def load_all_models():
         le_type = joblib.load(le_path)
         
         lstm_model = FraudLSTM(input_size=1, hidden_size=16)
-        lstm_model.load_state_dict(torch.load(lstm_path))
+        lstm_model.load_state_dict(torch.load(lstm_path, weights_only=True))
         lstm_model.eval()
         
         print("[SUCCESS] Machine learning and deep learning models loaded from registry.")

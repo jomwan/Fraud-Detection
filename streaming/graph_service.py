@@ -61,7 +61,7 @@ def update_and_get_graph_features(sender_id, receiver_id):
             # 2. Get degrees (In + Out connections) for both parties
             query = """
                 MATCH (u:User {id: $uid})
-                RETURN size((u)--()) as degree
+                RETURN count { (u)--() } as degree
             """
             sender_deg_raw = session.run(query, uid=sender_id).single()
             receiver_deg_raw = session.run(query, uid=receiver_id).single()

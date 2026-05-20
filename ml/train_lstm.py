@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 import pandas as pd
 import os
@@ -71,29 +72,58 @@ def train_lstm():
     X = (sequences / 10000.0).reshape(-1, 5, 1)
     y = labels.reshape(-1, 1)
 
-    # Shuffle
+    # Reproducible shuffle
+    np.random.seed(42)
     indices = np.random.permutation(len(X))
     X = X[indices]
     y = y[indices]
 
-    # Convert to PyTorch tensors
-    X_tensor = torch.tensor(X)
-    y_tensor = torch.tensor(y)
+    # Train/validation split (80/20)
+    split_idx = int(len(X) * 0.8)
+    X_train, X_val = X[:split_idx], X[split_idx:]
+    y_train, y_val = y[:split_idx], y[split_idx:]
+
+    print(f"  Train: {len(X_train)} samples | Validation: {len(X_val)} samples")
+
+    # Create DataLoaders for mini-batch training
+    train_dataset = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
+    val_dataset = TensorDataset(torch.from_numpy(X_val), torch.from_numpy(y_val))
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
 
     model = FraudLSTM(input_size=1, hidden_size=16)
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.01)
 
-    print(f"Training PyTorch LSTM on {len(X)} sequences for 30 epochs...")
+    print(f"Training PyTorch LSTM on {len(X_train)} sequences for 30 epochs (batch_size=64)...")
     for epoch in range(30):
-        optimizer.zero_grad()
-        outputs = model(X_tensor)
-        loss = criterion(outputs, y_tensor)
-        loss.backward()
-        optimizer.step()
+        # --- Training ---
+        model.train()
+        train_loss = 0.0
+        train_batches = 0
+        for X_batch, y_batch in train_loader:
+            optimizer.zero_grad()
+            outputs = model(X_batch)
+            loss = criterion(outputs, y_batch)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            train_batches += 1
+        avg_train_loss = train_loss / max(train_batches, 1)
 
+        # --- Validation ---
         if epoch % 5 == 0:
-            print(f"  Epoch {epoch}: Loss {loss.item():.4f}")
+            model.eval()
+            val_loss = 0.0
+            val_batches = 0
+            with torch.no_grad():
+                for X_batch, y_batch in val_loader:
+                    outputs = model(X_batch)
+                    loss = criterion(outputs, y_batch)
+                    val_loss += loss.item()
+                    val_batches += 1
+            avg_val_loss = val_loss / max(val_batches, 1)
+            print(f"  Epoch {epoch}: Train Loss {avg_train_loss:.4f} | Val Loss {avg_val_loss:.4f}")
 
     lstm_path = os.path.join(MODELS_DIR, 'lstm_model.pth')
     print(f"Saving LSTM Model to '{lstm_path}'...")
