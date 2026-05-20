@@ -1,5 +1,5 @@
 {
-    "generated_at": "2026-05-20T15:44:57",
+    "generated_at": "2026-05-20T16:50:03+00:00",
     "dataset": "registry_historical_dataset",
     "row_count": 50000,
     "fraud_count": 8213,
@@ -10,32 +10,32 @@
     },
     "models": {
         "xgboost": {
-            "accuracy": 0.9947,
-            "precision": 0.9729,
-            "recall": 0.9956,
-            "f1": 0.9841,
+            "accuracy": 0.9948,
+            "precision": 0.9736,
+            "recall": 0.9953,
+            "f1": 0.9843,
             "confusion_matrix": {
-                "true_negative": 41559,
-                "false_positive": 228,
-                "false_negative": 36,
-                "true_positive": 8177
+                "true_negative": 41565,
+                "false_positive": 222,
+                "false_negative": 39,
+                "true_positive": 8174
             },
-            "roc_auc": 0.9995,
-            "average_precision": 0.9978
+            "roc_auc": 0.9993,
+            "average_precision": 0.9974
         },
         "isolation_forest": {
-            "accuracy": 0.8173,
-            "precision": 0.3163,
-            "recall": 0.0964,
-            "f1": 0.1478,
+            "accuracy": 0.8198,
+            "precision": 0.3393,
+            "recall": 0.1023,
+            "f1": 0.1572,
             "confusion_matrix": {
-                "true_negative": 40075,
-                "false_positive": 1712,
-                "false_negative": 7421,
-                "true_positive": 792
+                "true_negative": 40151,
+                "false_positive": 1636,
+                "false_negative": 7373,
+                "true_positive": 840
             },
-            "roc_auc": 0.674,
-            "average_precision": 0.2495
+            "roc_auc": 0.6711,
+            "average_precision": 0.2599
         }
     }
 }
