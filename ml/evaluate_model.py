@@ -1,7 +1,10 @@
 import json
+import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 import joblib
 import pandas as pd
@@ -76,7 +79,7 @@ def generate_evaluation_report(
     iso_preds = [1 if risk >= 0.5 else 0 for risk in iso_risk]
 
     report = {
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "dataset": dataset_name,
         "row_count": int(len(y_eval)),
         "fraud_count": int(y_eval.sum()),
@@ -122,6 +125,7 @@ def evaluate_registry_models():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     evaluation = evaluate_registry_models()
-    print(f"Evaluation report written to {REPORT_PATH}")
-    print(json.dumps(evaluation["models"], indent=4))
+    logger.info("Evaluation report written to %s", REPORT_PATH)
+    logger.info(json.dumps(evaluation["models"], indent=4))

@@ -1,11 +1,16 @@
+import logging
+import os
+
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-import numpy as np
-import pandas as pd
-import os
+
 from ml.models import FraudLSTM
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, 'models_registry')
@@ -42,16 +47,16 @@ def train_lstm():
     csv_path = os.path.join(MODELS_DIR, "historical_transactions.csv")
 
     if os.path.exists(csv_path):
-        print(f"Building sequences from historical transaction data at {csv_path}...")
+        logger.info("Building sequences from historical transaction data at %s...", csv_path)
         sequences, labels = build_sequences_from_csv(csv_path, seq_len=5)
-        print(f"  Built {len(sequences)} sequences ({int(sum(labels))} positive, {int(len(labels) - sum(labels))} negative)")
+        logger.info("  Built %d sequences (%d positive, %d negative)", len(sequences), int(sum(labels)), int(len(labels) - sum(labels)))
     else:
-        print(f"WARNING: {csv_path} not found. Using synthetic fallback.")
+        logger.warning("%s not found. Using synthetic fallback.", csv_path)
         sequences = np.random.uniform(10, 500, (1000, 5)).astype(np.float32)
         labels = np.zeros(1000, dtype=np.float32)
 
     # Augment with explicit smurfing patterns to ensure the model learns them
-    print("Augmenting with synthetic smurfing patterns...")
+    logger.info("Augmenting with synthetic smurfing patterns...")
     smurf_seqs = np.random.uniform(9000, 9999, (500, 5)).astype(np.float32)
     smurf_labels = np.ones(500, dtype=np.float32)
 
@@ -83,7 +88,7 @@ def train_lstm():
     X_train, X_val = X[:split_idx], X[split_idx:]
     y_train, y_val = y[:split_idx], y[split_idx:]
 
-    print(f"  Train: {len(X_train)} samples | Validation: {len(X_val)} samples")
+    logger.info("  Train: %d samples | Validation: %d samples", len(X_train), len(X_val))
 
     # Create DataLoaders for mini-batch training
     train_dataset = TensorDataset(torch.from_numpy(X_train), torch.from_numpy(y_train))
@@ -95,7 +100,7 @@ def train_lstm():
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.01)
 
-    print(f"Training PyTorch LSTM on {len(X_train)} sequences for 30 epochs (batch_size=64)...")
+    logger.info("Training PyTorch LSTM on %d sequences for 30 epochs (batch_size=64)...", len(X_train))
     for epoch in range(30):
         # --- Training ---
         model.train()
@@ -123,13 +128,14 @@ def train_lstm():
                     val_loss += loss.item()
                     val_batches += 1
             avg_val_loss = val_loss / max(val_batches, 1)
-            print(f"  Epoch {epoch}: Train Loss {avg_train_loss:.4f} | Val Loss {avg_val_loss:.4f}")
+            logger.info("  Epoch %d: Train Loss %.4f | Val Loss %.4f", epoch, avg_train_loss, avg_val_loss)
 
     lstm_path = os.path.join(MODELS_DIR, 'lstm_model.pth')
-    print(f"Saving LSTM Model to '{lstm_path}'...")
+    logger.info("Saving LSTM Model to '%s'...", lstm_path)
     os.makedirs(MODELS_DIR, exist_ok=True)
     torch.save(model.state_dict(), lstm_path)
-    print("LSTM Training Complete!")
+    logger.info("LSTM Training Complete!")
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     train_lstm()

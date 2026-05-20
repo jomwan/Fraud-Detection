@@ -1,9 +1,14 @@
+import logging
 import os
+import time
+
 import joblib
 import pandas as pd
 import torch
-import time
+
 from ml.models import FraudLSTM
+
+logger = logging.getLogger(__name__)
 
 # Define absolute paths relative to this file to resolve model files reliably
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -31,9 +36,9 @@ def load_all_models():
         lstm_model.load_state_dict(torch.load(lstm_path, weights_only=True))
         lstm_model.eval()
         
-        print("[SUCCESS] Machine learning and deep learning models loaded from registry.")
+        logger.info("Machine learning and deep learning models loaded from registry.")
     except Exception as e:
-        print(f"[WARNING] Inference engine failed to load models: {e}")
+        logger.warning("Inference engine failed to load models: %s", e)
 
 # Load models on startup
 load_all_models()
