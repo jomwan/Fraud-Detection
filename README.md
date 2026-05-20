@@ -21,9 +21,9 @@ The system processes and refines transactional data through logical steps:
     [ Gold: KPI Aggregates ] ──► high-velocity enterprise aggregates & business KPIs
 ```
 
-- **Bronze Layer (`bronze/`)**: Appends raw, untouched transaction JSON objects into date-partitioned JSONL storage (`bronze/data/year=YYYY/month=MM/day=DD/raw_transactions.jsonl`).
-- **Silver Layer (`silver/`)**: Validates transaction schemas, joins real-time features (Redis velocity, Neo4j degree centrality), appends ML risk prediction flags, and saves to enriched CSVs (`silver/data/enriched_transactions.csv`).
-- **Gold Layer (`gold/`)**: Executes corporate KPI rollups, computing fraud metrics, category/type breakdowns, and compiling high-risk entity checklists (`gold/data/business_kpis.json`, `gold/data/fraud_by_type.csv`, `gold/data/high_risk_entities.csv`).
+- **Bronze Layer (`bronze/`)**: Appends raw, untouched transaction JSON objects into date-partitioned JSONL storage (`bronze/data/year=YYYY/month=MM/day=DD/raw_transactions.jsonl`). Input validation rejects non-dict and empty payloads. All timestamps are UTC.
+- **Silver Layer (`silver/`)**: Validates transaction schemas, enforces data types on boolean/float fields, joins real-time features (Redis velocity, Neo4j degree centrality), appends ML risk prediction flags, and saves to enriched CSVs. Schema drift detection warns when unknown keys appear in incoming data.
+- **Gold Layer (`gold/`)**: Executes corporate KPI rollups, computing fraud metrics, category/type breakdowns, and compiling high-risk entity checklists (`gold/data/business_kpis.json`, `gold/data/fraud_by_type.csv`, `gold/data/high_risk_entities.csv`). CSV dtype coercion ensures correct boolean and numeric handling.
 
 ---
 
@@ -33,7 +33,7 @@ Transactions are evaluated in real-time by a multi-model ensembling module locat
 
 1. **Supervised Learning (XGBoost - `xgb_model.pkl`)**: Trained on historical data to recognize established fraudulent behaviors and high-value theft patterns. *Ensemble weight: 40%.*
 2. **Unsupervised Learning (Isolation Forest - `iso_model.pkl`)**: Catches zero-day exploits, anomalies, and outliers that deviate from the normal transaction baseline. *Ensemble weight: 25%.*
-3. **Deep Sequence Learning (PyTorch LSTM - `lstm_model.pth`)**: Evaluates a rolling sequence of user transactions to identify temporal patterns like **"Smurfing"** (evading $10,000 reporting thresholds through multiple micro-transfers). *Ensemble weight: 35%.*
+3. **Deep Sequence Learning (PyTorch LSTM - `lstm_model.pth`)**: Evaluates a rolling sequence of user transactions to identify temporal patterns like **"Smurfing"** (evading $10,000 reporting thresholds through multiple micro-transfers). Uses mini-batch DataLoader training with 80/20 validation split. *Ensemble weight: 35%.*
 4. **Graph Network Analytics (Neo4j / NetworkX)**: Computes degree centrality dynamically to identify "Money-Laundering Hubs" (nodes with abnormally high transaction links).
 
 ---
@@ -55,19 +55,34 @@ Fraud Detection/
 ├── streaming/                  # Stream Processing Core
 │   ├── consumer_service.py     # Live Kafka Consumer executing real-time ML inference
 │   ├── feature_store.py        # Sub-millisecond Redis cache managing client transaction velocity
-│   └── graph_service.py        # Neo4j interface for real-time PageRank / centrality monitoring
+│   └── graph_service.py        # Neo4j interface for real-time degree centrality monitoring
 ├── ml/                         # Machine Learning Models & Registry
 │   ├── train_model.py          # Script to train traditional models (XGBoost / Isolation Forest)
 │   ├── train_lstm.py           # Script to train deep sequence PyTorch LSTM models
+│   ├── evaluate_model.py       # Offline model evaluation (precision, recall, F1, ROC AUC)
 │   ├── inference.py            # Ensembled risk engine compiling multi-model evaluations
+│   ├── models.py               # PyTorch model architecture definitions (FraudLSTM)
 │   └── models_registry/        # Serialized weights, encoders, and historical transaction datasets
 ├── dashboards/                 # Frontend User Interface
-│   └── dashboard.py            # Premium Streamlit UI (Live Ledger, Graphs, Concept Drift)
-├── tests/                      # Automated Test Suite (Medallion Flow & Model Inference)
-│   ├── test_inference.py
-│   └── test_medallion.py
-├── docker-compose.yml          # Container configuration (Kafka, Redis, Neo4j)
-├── requirements.txt            # System dependencies
+│   ├── dashboard.py            # Premium Streamlit UI (Live Ledger, Graphs, Concept Drift)
+│   └── drift_report.py         # Evidently AI data drift report generator
+├── tests/                      # Automated Test Suite
+│   ├── test_inference.py       # ML inference engine tests (5 tests)
+│   ├── test_medallion.py       # Medallion pipeline tests (6 tests)
+│   ├── test_drift_report.py    # Evidently drift report tests (2 tests)
+│   ├── test_evaluation.py      # Model evaluation tests (1 test)
+│   └── test_producer_data.py   # Producer data pipeline tests (1 test)
+├── cicd/                       # CI/CD Scripts
+│   └── run_tests.bat           # Test runner script
+├── orchestration/              # [Future] Workflow orchestration (Airflow / Prefect)
+├── terraform/                  # [Future] Infrastructure as Code (AWS / GCP / Azure)
+├── docs/                       # Documentation
+│   ├── ARCHITECTURE.md         # Technical architecture reference
+│   └── GETTING_STARTED.md      # Step-by-step setup guide
+├── docker-compose.yml          # Container configuration (Kafka KRaft, Redis, Neo4j)
+├── requirements.txt            # Python dependencies
+├── pytest.ini                  # Pytest configuration
+├── .gitignore                  # Git ignore rules
 └── paysim_data.csv             # Raw 493MB source dataset (ignored by git)
 ```
 
@@ -156,9 +171,75 @@ set SMURFING_INJECTION_RATE=0.05
 ---
 
 ## 📈 Quality Assurance & Tests
-All components are covered by unit tests validating Medallion stage transformations, schema validation, PyTorch sequencing, and XGBoost/Isolation Forest ensembling.
+
+The project includes **15 automated tests** covering Medallion stage transformations, input validation, schema enforcement, ML inference behavior, data drift detection, and model evaluation.
 
 Run the test suite with:
 ```bash
 .venv\Scripts\python -m pytest
 ```
+
+Or use the CI/CD script:
+```bash
+cicd\run_tests.bat
+```
+
+---
+
+## 🔧 Technical Standards
+
+The codebase follows these production-ready practices:
+
+| Practice | Details |
+|----------|---------|
+| **Structured Logging** | All modules use Python `logging` (no `print()` statements) |
+| **UTC Timestamps** | All partitions and records use `datetime.now(timezone.utc)` |
+| **Input Validation** | Bronze and Silver reject non-dict/empty payloads |
+| **Data Type Safety** | Silver enforces bool/float types before CSV write; Gold coerces CSV strings back to native types |
+| **Thread Safety** | Bronze and Silver file writes are protected by `threading.Lock()` |
+| **Modern APIs** | PyTorch `weights_only=True`, Neo4j `count {}`, `redis.Redis`, Python 3 `super()` |
+| **Streamlit 1.28+** | Uses `use_container_width=True` instead of deprecated `width='stretch'` |
+
+---
+
+## 🔮 Future Integration Roadmap
+
+The following directories are reserved for planned enhancements. Contributions welcome!
+
+### 🏗️ Infrastructure as Code (`terraform/`)
+- **Cloud deployment**: Terraform modules for AWS (EKS + MSK + ElastiCache), GCP (GKE + Pub/Sub + Memorystore), or Azure (AKS + Event Hubs + Azure Cache)
+- **Auto-scaling**: Horizontal pod autoscaling for consumer and producer services
+- **Secrets management**: Integration with AWS Secrets Manager / GCP Secret Manager / Azure Key Vault
+
+### ⚙️ Workflow Orchestration (`orchestration/`)
+- **Airflow / Prefect DAGs**: Scheduled model retraining pipelines with data validation gates
+- **Model registry versioning**: MLflow or Weights & Biases integration for experiment tracking
+- **Automated Gold refresh**: Scheduled batch aggregation instead of inline Gold compilation
+
+### 🔄 CI/CD Pipeline Expansion (`cicd/`)
+- **GitHub Actions / GitLab CI**: Automated test + lint + build on every push
+- **Docker image builds**: Multi-stage Dockerfiles for consumer, producer, and dashboard services
+- **Deployment automation**: Blue-green or canary deployment strategies for model updates
+
+### 📊 Data & Storage Upgrades
+- **Parquet migration**: Replace CSV-based Silver/Gold with Apache Parquet for columnar compression and faster reads
+- **Delta Lake / Apache Iceberg**: ACID transactions and time-travel on the Medallion lakehouse
+- **PostgreSQL / TimescaleDB**: Persistent relational store for Gold KPIs with SQL query support
+
+### 🤖 ML & MLOps Enhancements
+- **Feature Store**: Migrate from Redis to Feast or Tecton for production-grade feature management
+- **Online A/B testing**: Shadow-mode deployment to compare new model versions against production
+- **Explainability**: SHAP / LIME integration for per-transaction risk explanation
+- **Graph Neural Networks**: Upgrade from degree centrality to GNN-based fraud detection (PyG / DGL)
+- **Automated retraining**: Drift-triggered retraining pipeline when Evidently detects concept drift
+
+### 🔐 Security & Compliance
+- **Authentication**: API gateway (Kong / Envoy) with OAuth2 / JWT for dashboard and services
+- **Audit logging**: Immutable audit trail for all fraud decisions (compliance with PCI-DSS / SOX)
+- **Data encryption**: At-rest encryption for Bronze/Silver/Gold stores, TLS for all service communication
+- **PII masking**: Automatic pseudonymization of account identifiers in non-production environments
+
+### 📡 Monitoring & Observability
+- **Prometheus + Grafana**: Real-time metrics for inference latency, throughput, and error rates
+- **OpenTelemetry**: Distributed tracing across the Kafka → Consumer → ML → Archive pipeline
+- **Alerting**: PagerDuty / Slack integration for anomalous system behavior (latency spikes, consumer lag)

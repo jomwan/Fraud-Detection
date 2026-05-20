@@ -2,6 +2,12 @@
 
 This guide is for a fresh local checkout after migration. It focuses on getting the Python environment and tests working first, then running the optional streaming stack.
 
+## Prerequisites
+
+- **Python 3.10+** (3.13 tested)
+- **Docker & Docker Compose** (for Kafka, Redis, Neo4j)
+- **Windows** (all commands shown for `cmd` / PowerShell; adjust for Unix)
+
 ## 1. Create a virtual environment
 
 From the project root:
@@ -20,13 +26,19 @@ If package installation fails with a network or permission error, retry from a t
 .venv\Scripts\python -m pytest
 ```
 
+Or use the CI/CD script:
+
+```cmd
+cicd\run_tests.bat
+```
+
 Expected result:
 
 ```text
-8 passed
+15 passed
 ```
 
-The tests validate the core medallion flow and model inference behavior without requiring Kafka, Redis, Neo4j, or Streamlit to be running.
+The tests validate the core medallion flow (including input validation and dtype coercion), model inference behavior, and data drift detection without requiring Kafka, Redis, Neo4j, or Streamlit to be running.
 
 ## 3. Prepare training data
 
@@ -57,7 +69,11 @@ The repository already contains model artifacts under `ml/models_registry`. To r
 .venv\Scripts\python ml\train_lstm.py
 ```
 
-`ml/train_model.py` also writes an offline evaluation report:
+`ml/train_model.py` trains XGBoost + Isolation Forest and writes an offline evaluation report.
+
+`ml/train_lstm.py` trains the PyTorch LSTM sequence model using mini-batch DataLoader (batch_size=64) with an 80/20 train/validation split.
+
+Both scripts write their evaluation report to:
 
 ```text
 ml\models_registry\evaluation_report.json
@@ -133,6 +149,33 @@ set STREAM_DELAY_SECONDS=0.5
 
 PaySim replay events include `ground_truth_is_fraud`, so the consumer and dashboard can show true positives, false positives, false negatives, and true negatives while streaming.
 
+## Environment variables
+
+All services support configuration through environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `KAFKA_BOOTSTRAP_SERVERS` | `localhost:29092` | Kafka broker address |
+| `REDIS_HOST` | `localhost` | Redis server host |
+| `REDIS_PORT` | `6379` | Redis server port |
+| `NEO4J_URI` | `bolt://localhost:7687` | Neo4j connection URI |
+| `NEO4J_USER` | `neo4j` | Neo4j username |
+| `NEO4J_PASSWORD` | `password` | Neo4j password |
+| `PRODUCER_MODE` | `paysim_replay` | Producer mode (`random`, `paysim_replay`, `mixed`) |
+| `STREAM_DELAY_SECONDS` | `0.5` | Delay between produced messages (seconds) |
+| `SMURFING_INJECTION_RATE` | `0.05` | Probability of injecting smurfing sequences in `mixed` mode |
+
+## Logging
+
+All modules use Python's `logging` library instead of `print()`. To see log output when running scripts directly, the `if __name__ == '__main__'` blocks configure `logging.basicConfig(level=logging.INFO)`.
+
+To increase verbosity for debugging:
+
+```python
+import logging
+logging.basicConfig(level=logging.DEBUG)
+```
+
 ## Troubleshooting
 
 - `pytest is not recognized`: run `.venv\Scripts\python -m pytest` or reinstall requirements.
@@ -140,3 +183,4 @@ PaySim replay events include `ground_truth_is_fraud`, so the consumer and dashbo
 - Redis or Neo4j connection errors: the code has fallback behavior, but graph and velocity features will be less realistic.
 - Model registry missing: run the training steps or restore the files under `ml/models_registry`.
 - Drift report fails: let the live stream collect at least 20 rows and confirm `ml/models_registry/historical_transactions.csv` exists.
+- `torch.load` warnings: the project uses `weights_only=True` for safe deserialization (PyTorch 2.0+).
