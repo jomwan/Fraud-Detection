@@ -62,6 +62,14 @@ def test_bronze_archiver():
         assert logged_tx["amount"] == 25000.0
         assert logged_tx["type"] == "CASH_OUT"
 
+def test_bronze_rejects_invalid_input():
+    """Asserts that Bronze archiver rejects non-dict and empty payloads."""
+    assert archive_to_bronze("not a dict") is False
+    assert archive_to_bronze(42) is False
+    assert archive_to_bronze(None) is False
+    assert archive_to_bronze({}) is False
+    assert archive_to_bronze([{"amount": 100}]) is False
+
 def test_silver_transformer():
     """Asserts that enriched data is correctly parsed, schema validated, and saved in CSVs."""
     test_enriched = {
@@ -99,8 +107,16 @@ def test_silver_transformer():
         "action", "reason", "processing_ms", "timestamp"
     ]
     assert df.loc[0, "type"] == "CASH_OUT"
-    assert bool(df.loc[0, "is_fraud"]) is True
+    assert bool(df.loc[0, "is_fraud"]) is True  # Written as "True" in CSV, pandas reads back as bool
     assert df.loc[0, "combined_risk"] == 0.89
+
+def test_silver_rejects_invalid_input():
+    """Asserts that Silver transformer rejects non-dict and empty payloads."""
+    assert archive_to_silver("not a dict") is False
+    assert archive_to_silver(42) is False
+    assert archive_to_silver(None) is False
+    assert archive_to_silver({}) is False
+    assert archive_to_silver([{"amount": 100}]) is False
 
 def test_gold_aggregation_compilation():
     """Asserts that Silver files can be aggregated into corporate KPI rollups."""
@@ -153,3 +169,34 @@ def test_gold_aggregation_compilation():
     assert len(entities_df) == 1
     assert entities_df.loc[0, "nameOrig"] == "C1001"
     assert entities_df.loc[0, "combined_risk"] == 0.89
+
+def test_gold_handles_csv_string_booleans():
+    """Asserts that Gold correctly parses is_fraud when CSV stores it as string 'True'/'False'."""
+    # Silver writes is_fraud as string "True"/"False" after type enforcement.
+    # Gold must correctly coerce these back to booleans for aggregation.
+    test_fraud = {
+        "type": "TRANSFER", "amount": 50000.0, "nameOrig": "C_SMURF", "oldbalanceOrg": 100000.0,
+        "newbalanceOrig": 50000.0, "nameDest": "M_SHELL", "oldbalanceDest": 0.0, "newbalanceDest": 50000.0,
+        "velocity_5m": 6, "supervised_risk": 0.95, "unsupervised_risk": 0.88, "sequence_risk": 0.91,
+        "combined_risk": 0.92, "is_fraud": True, "action": "BLOCK", "reason": "Smurfing", "processing_ms": 8.0
+    }
+    test_legit = {
+        "type": "PAYMENT", "amount": 100.0, "nameOrig": "C_NORMAL", "oldbalanceOrg": 5000.0,
+        "newbalanceOrig": 4900.0, "nameDest": "M_SHOP", "oldbalanceDest": 0.0, "newbalanceDest": 100.0,
+        "velocity_5m": 1, "supervised_risk": 0.01, "unsupervised_risk": 0.02, "sequence_risk": 0.00,
+        "combined_risk": 0.01, "is_fraud": False, "action": "ALLOW", "reason": "Normal", "processing_ms": 2.0
+    }
+
+    archive_to_silver(test_fraud)
+    archive_to_silver(test_legit)
+
+    success = compile_gold_metrics()
+    assert success is True
+
+    gold_dir = os.path.join(TEST_DATA_DIR, "gold")
+    with open(os.path.join(gold_dir, "business_kpis.json"), 'r', encoding='utf-8') as f:
+        kpis = json.load(f)
+        # The critical assertion: Gold must count exactly 1 fraud despite CSV string storage
+        assert kpis["total_fraud_blocked"] == 1
+        assert kpis["total_transactions_analyzed"] == 2
+        assert kpis["total_fraud_blocked_volume"] == 50000.0

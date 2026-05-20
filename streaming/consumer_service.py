@@ -1,8 +1,11 @@
 import json
+import logging
 import os
 import sys
-import time
+from datetime import datetime, timezone
 from confluent_kafka import Consumer, Producer
+
+logger = logging.getLogger(__name__)
 
 # Adjust Python Path to resolve local imports cleanly from workspace root
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -30,9 +33,9 @@ def start_consumer():
         consumer = Consumer(consumer_conf)
         producer = Producer(producer_conf)
         consumer.subscribe(['transactions-raw'])
-        print(f"[SUCCESS] Subscribed to transactions-raw. Consuming events...")
+        logger.info("Subscribed to transactions-raw. Consuming events...")
     except Exception as e:
-        print(f"[ERROR] Failed to start Kafka broker clients: {e}")
+        logger.error("Failed to start Kafka broker clients: %s", e)
         return
 
     processed_count = 0
@@ -44,7 +47,7 @@ def start_consumer():
             if msg is None:
                 continue
             if msg.error():
-                print(f"Consumer error: {msg.error()}")
+                logger.error("Consumer error: %s", msg.error())
                 continue
 
             try:
@@ -54,6 +57,9 @@ def start_consumer():
                 receiver_id = tx['nameDest']
                 amount = float(tx['amount'])
                 tx_type = tx['type']
+
+                # Inject UTC timestamp for downstream archival layers
+                tx["timestamp"] = datetime.now(timezone.utc).isoformat()
 
                 # 🥉 Archival Step A: Save raw untouched event to Bronze immediately
                 archive_to_bronze(tx)
@@ -111,10 +117,14 @@ def start_consumer():
 
                 # CLI Visual Log
                 status = "🔴 BLOCKED" if tx['is_fraud'] else "🟢 ALLOWED"
-                print(f"[{status}] TX {sender_id} -> {receiver_id} | Amt: ${amount:,.2f} | Risk: {tx['combined_risk']:.3f} | Latency: {tx['processing_ms']}ms | Reason: {tx['reason']}")
+                logger.info(
+                    "[%s] TX %s -> %s | Amt: $%,.2f | Risk: %.3f | Latency: %sms | Reason: %s",
+                    status, sender_id, receiver_id, amount,
+                    tx['combined_risk'], tx['processing_ms'], tx['reason']
+                )
 
             except Exception as ex:
-                print(f"Failed to process transaction event: {ex}")
+                logger.error("Failed to process transaction event: %s", ex)
 
     except KeyboardInterrupt:
         pass
@@ -123,4 +133,5 @@ def start_consumer():
         producer.flush()
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     start_consumer()

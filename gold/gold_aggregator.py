@@ -1,12 +1,32 @@
 import os
 import glob
 import json
+import logging
 import pandas as pd
-from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SILVER_DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, '../silver/data'))
 GOLD_DATA_DIR = os.path.join(BASE_DIR, 'data')
+
+def _coerce_dtypes(df: pd.DataFrame) -> pd.DataFrame:
+    """Fix CSV string-to-native type conversion for critical columns."""
+    # is_fraud: CSV reads as string "True"/"False" — convert to proper boolean
+    if 'is_fraud' in df.columns:
+        df['is_fraud'] = df['is_fraud'].astype(str).str.strip().str.lower().isin(['true', '1', '1.0'])
+    # prediction_correct: same treatment
+    if 'prediction_correct' in df.columns:
+        df['prediction_correct'] = df['prediction_correct'].astype(str).str.strip().str.lower().isin(['true', '1', '1.0'])
+    # ground_truth_is_fraud: same treatment
+    if 'ground_truth_is_fraud' in df.columns:
+        df['ground_truth_is_fraud'] = df['ground_truth_is_fraud'].astype(str).str.strip().str.lower().isin(['true', '1', '1.0'])
+    # Numeric fields that may arrive as strings
+    for col in ['combined_risk', 'amount', 'processing_ms',
+                'supervised_risk', 'unsupervised_risk', 'sequence_risk']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
+    return df
 
 def compile_gold_metrics():
     """
@@ -20,7 +40,7 @@ def compile_gold_metrics():
     csv_files = glob.glob(pattern, recursive=True)
     
     if not csv_files:
-        print("[WARNING] No Silver files discovered yet. Generating baseline fallback.")
+        logger.warning("No Silver files discovered yet. Generating baseline fallback.")
         # Default metrics
         default_kpis = {
             "total_transactions_analyzed": 0,
@@ -46,10 +66,13 @@ def compile_gold_metrics():
         # Load and concat all csv partitions
         df_list = [pd.read_csv(f) for f in csv_files]
         df = pd.concat(df_list, ignore_index=True)
+
+        # Coerce CSV string types to proper native types
+        df = _coerce_dtypes(df)
         
         # 2. Compile Business KPIs
         total_tx = len(df)
-        fraud_df = df[df['is_fraud'] == True]
+        fraud_df = df[df['is_fraud']]
         total_fraud = len(fraud_df)
         block_rate = (total_fraud / total_tx * 100) if total_tx > 0 else 0.0
         total_volume = float(df['amount'].sum())
@@ -86,11 +109,18 @@ def compile_gold_metrics():
             high_risk = high_risk[keep_cols].head(20)
             high_risk.to_csv(os.path.join(GOLD_DATA_DIR, 'high_risk_entities.csv'), index=False)
             
-        print(f"[SUCCESS] Gold layer tables updated successfully using {total_tx} source transactions.")
+        logger.info("Gold layer tables updated successfully using %d source transactions.", total_tx)
         return True
+    except (pd.errors.EmptyDataError, pd.errors.ParserError) as e:
+        logger.error("Gold aggregator CSV parsing error: %s", e)
+        return False
+    except OSError as e:
+        logger.error("Gold aggregator I/O error: %s", e)
+        return False
     except Exception as e:
-        print(f"[ERROR] Failed to compile Gold metrics: {e}")
+        logger.error("Gold aggregator unexpected error: %s", e)
         return False
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     compile_gold_metrics()
