@@ -1,6 +1,10 @@
-from neo4j import GraphDatabase
-import time
+import logging
 import os
+import time
+
+from neo4j import GraphDatabase
+
+logger = logging.getLogger(__name__)
 
 neo4j_uri = os.environ.get("NEO4J_URI", "bolt://localhost:7687")
 neo4j_user = os.environ.get("NEO4J_USER", "neo4j")
@@ -11,9 +15,9 @@ try:
     # Test connection
     with neo4j_driver.session() as session:
         session.run("RETURN 1")
-    print(f"[SUCCESS] Connected to Neo4j at {neo4j_uri}")
+    logger.info("Connected to Neo4j at %s", neo4j_uri)
 except Exception as e:
-    print(f"[WARNING] Neo4j connection failed: {e}. Fallbacks will be active.")
+    logger.warning("Neo4j connection failed: %s. Fallbacks will be active.", e)
     neo4j_driver = None
 
 # Dynamic caching for total nodes count to prevent continuous graph size calculation overhead
@@ -36,7 +40,7 @@ def get_total_graph_nodes():
                     cached_node_count = max(10, record['cnt'])
                     last_node_count_check = now
         except Exception as e:
-            print(f"Neo4j node count check failed: {e}")
+            logger.error("Neo4j node count check failed: %s", e)
     return cached_node_count
 
 def update_and_get_graph_features(sender_id, receiver_id):
@@ -75,5 +79,5 @@ def update_and_get_graph_features(sender_id, receiver_id):
 
             return sender_degree / norm_factor, receiver_degree / norm_factor
     except Exception as e:
-        print(f"Neo4j graph features extraction failed: {e}")
+        logger.error("Neo4j graph features extraction failed: %s", e)
         return 0.001, 0.001

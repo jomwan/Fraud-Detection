@@ -1,7 +1,10 @@
-import pandas as pd
-import numpy as np
-import random
+import logging
 import os
+import random
+
+import pandas as pd
+
+logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PAYSIM_PATH = os.path.abspath(os.path.join(BASE_DIR, "../paysim_data.csv"))
@@ -13,12 +16,12 @@ PAYSIM_COLUMNS = [
 
 def load_and_preprocess_paysim(paysim_path=PAYSIM_PATH, sample_size=50000):
     """Load PaySim dataset in its original format — no column renaming."""
-    print(f"Loading PaySim dataset from {paysim_path}...")
+    logger.info("Loading PaySim dataset from %s...", paysim_path)
     if not os.path.exists(paysim_path):
-        print(f"[ERROR] PaySim CSV not found at {paysim_path}. Check path.")
+        logger.error("PaySim CSV not found at %s. Check path.", paysim_path)
         return None
     df = pd.read_csv(paysim_path)
-    print(f"  Raw dataset: {len(df)} rows, {df['isFraud'].sum()} fraud cases")
+    logger.info("  Raw dataset: %d rows, %d fraud cases", len(df), df['isFraud'].sum())
 
     if len(df) > sample_size:
         fraud_df = df[df['isFraud'] == 1]
@@ -31,9 +34,9 @@ def load_and_preprocess_paysim(paysim_path=PAYSIM_PATH, sample_size=50000):
     os.makedirs(os.path.dirname(HISTORICAL_PATH), exist_ok=True)
     df.to_csv(HISTORICAL_PATH, index=False)
 
-    print(f"Preprocessed {len(df)} transactions ({df['isFraud'].sum()} fraud)")
-    print(f"Columns preserved: {list(df.columns)}")
-    print(f"Saved to '{HISTORICAL_PATH}'")
+    logger.info("Preprocessed %d transactions (%d fraud)", len(df), df['isFraud'].sum())
+    logger.info("Columns preserved: %s", list(df.columns))
+    logger.info("Saved to '%s'", HISTORICAL_PATH)
     return df
 
 def generate_realtime_transaction():
@@ -136,4 +139,5 @@ def generate_smurfing_sequence():
     return transactions
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     load_and_preprocess_paysim()

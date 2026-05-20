@@ -1,8 +1,11 @@
 import json
-import time
-import sys
+import logging
 import os
 import random
+import sys
+import time
+
+logger = logging.getLogger(__name__)
 
 # Adjust Python Path to resolve local imports cleanly from workspace root
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -25,9 +28,9 @@ SMURFING_INJECTION_RATE = float(os.environ.get("SMURFING_INJECTION_RATE", "0.05"
 def delivery_report(err, msg):
     """ Called once for each message produced to indicate delivery result. """
     if err is not None:
-        print(f'Message delivery failed: {err}')
+        logger.error('Message delivery failed: %s', err)
     else:
-        print(f'Message delivered to {msg.topic()} [{msg.partition()}]')
+        logger.debug('Message delivered to %s [%s]', msg.topic(), msg.partition())
 
 def publish_transaction(tx, delay_seconds=STREAM_DELAY_SECONDS):
     producer.produce(
@@ -41,11 +44,11 @@ def publish_transaction(tx, delay_seconds=STREAM_DELAY_SECONDS):
         time.sleep(delay_seconds)
 
 def start_streaming():
-    print(f"Starting Kafka Producer in '{PRODUCER_MODE}' mode... Press Ctrl+C to stop.")
+    logger.info("Starting Kafka Producer in '%s' mode... Press Ctrl+C to stop.", PRODUCER_MODE)
     paysim_stream = None
     if PRODUCER_MODE in {"paysim_replay", "mixed"}:
         paysim_stream = iter_paysim_transactions(HISTORICAL_PATH, loop=True)
-        print(f"Replaying PaySim transactions from {HISTORICAL_PATH}")
+        logger.info("Replaying PaySim transactions from %s", HISTORICAL_PATH)
 
     try:
         while True:
@@ -54,7 +57,7 @@ def start_streaming():
                 publish_transaction(tx)
             elif PRODUCER_MODE == "mixed":
                 if random.random() < SMURFING_INJECTION_RATE:
-                    print("Injecting synthetic smurfing sequence into PaySim replay...")
+                    logger.info("Injecting synthetic smurfing sequence into PaySim replay...")
                     for smurf_tx in generate_smurfing_sequence():
                         publish_transaction(smurf_tx, delay_seconds=0.2)
                 else:
@@ -69,4 +72,5 @@ def start_streaming():
         producer.flush()
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     start_streaming()

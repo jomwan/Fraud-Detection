@@ -1,7 +1,11 @@
-import redis
-import time
-import random
+import logging
 import os
+import random
+import time
+
+import redis
+
+logger = logging.getLogger(__name__)
 
 # Connect to Redis
 redis_host = os.environ.get("REDIS_HOST", "localhost")
@@ -11,9 +15,9 @@ try:
     redis_client = redis.Redis(host=redis_host, port=redis_port, db=0, decode_responses=True)
     # Ping to check connectivity
     redis_client.ping()
-    print(f"[SUCCESS] Connected to Redis at {redis_host}:{redis_port}")
+    logger.info("Connected to Redis at %s:%s", redis_host, redis_port)
 except Exception as e:
-    print(f"[WARNING] Redis connection failed: {e}. Fallbacks will be active.")
+    logger.warning("Redis connection failed: %s. Fallbacks will be active.", e)
     redis_client = None
 
 def get_velocity_feature(sender_id):
@@ -30,7 +34,7 @@ def get_velocity_feature(sender_id):
         redis_client.expire(f"vel:{sender_id}", 300)
         return redis_client.zcard(f"vel:{sender_id}")
     except Exception as e:
-        print(f"Redis velocity error: {e}")
+        logger.error("Redis velocity error: %s", e)
         return 1
 
 def get_user_sequence(sender_id, current_amount, max_len=5):
@@ -56,5 +60,5 @@ def get_user_sequence(sender_id, current_amount, max_len=5):
             
         return amounts
     except Exception as e:
-        print(f"Redis sequence error: {e}")
+        logger.error("Redis sequence error: %s", e)
         return [0.0, 0.0, 0.0, 0.0, float(current_amount)]
