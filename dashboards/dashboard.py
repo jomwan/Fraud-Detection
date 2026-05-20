@@ -81,7 +81,7 @@ def render_model_card(model_name, metrics):
         color_continuous_scale="Blues",
     )
     fig.update_layout(height=280, margin=dict(t=20, b=20, l=20, r=20))
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, use_container_width=True)
 
 
 LIVE_TABLE_FORMAT = {
@@ -123,14 +123,14 @@ def render_live_table(title, df, columns, empty_message, rows=15, highlight=Fals
     if highlight:
         styled = styled.apply(highlight_fraud_rows, axis=1)
 
-    st.dataframe(styled, width='stretch', height=min(420, 110 + (len(view) * 35)))
+    st.dataframe(styled, use_container_width=True, height=min(420, 110 + (len(view) * 35)))
 
 
 def build_blocked_accounts(df):
     if df.empty or "nameOrig" not in df.columns:
         return pd.DataFrame()
 
-    is_fraud_mask = df["is_fraud"] == True if "is_fraud" in df.columns else pd.Series(False, index=df.index)
+    is_fraud_mask = df["is_fraud"].astype(bool) if "is_fraud" in df.columns else pd.Series(False, index=df.index)
     action_mask = df["action"] == "BLOCK" if "action" in df.columns else pd.Series(False, index=df.index)
     blocked_df = df[is_fraud_mask | action_mask].copy()
     if blocked_df.empty:
@@ -221,7 +221,7 @@ def live_dashboard():
         if st.session_state.transactions:
             df = pd.DataFrame(st.session_state.transactions)
 
-            is_fraud_mask = df["is_fraud"] == True if "is_fraud" in df.columns else pd.Series(False, index=df.index)
+            is_fraud_mask = df["is_fraud"].astype(bool) if "is_fraud" in df.columns else pd.Series(False, index=df.index)
             action_mask = df["action"] == "BLOCK" if "action" in df.columns else pd.Series(False, index=df.index)
             blocked_df = df[is_fraud_mask | action_mask].copy()
             blocked_accounts_df = build_blocked_accounts(df)
@@ -355,7 +355,7 @@ def live_dashboard():
                 st.markdown("#### Transaction Amount Distribution")
                 fig = px.histogram(df, x='amount', nbins=30, color_discrete_sequence=['#0068c9'])
                 fig.update_layout(height=250, margin=dict(t=10, b=30, l=40, r=10))
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
 
 with tab1:
     live_dashboard()
@@ -422,7 +422,7 @@ with tab2:
                     color_discrete_sequence=px.colors.qualitative.Set2
                 )
                 fig.update_layout(height=300, margin=dict(t=10, b=10))
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True)
             else:
                 st.info("No fraud detections yet.")
 
@@ -454,7 +454,7 @@ with tab2:
                         title=labels.get(risk_col, risk_col),
                         height=250, margin=dict(t=40, b=30, l=40, r=10)
                     )
-                    st.plotly_chart(fig, width='stretch')
+                    st.plotly_chart(fig, use_container_width=True)
 
         # Model agreement analysis
         if all(c in df.columns for c in risk_cols):
@@ -478,7 +478,7 @@ with tab2:
                 xaxis_title="Agreement Level", yaxis_title="Count",
                 margin=dict(t=40, b=30, l=40, r=10)
             )
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("Collect at least 5 transactions to see model performance analytics.")
 
@@ -546,7 +546,7 @@ with tab3:
                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                 plot_bgcolor='rgba(0,0,0,0)'
             )
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
 
             # Graph stats
             s1, s2, s3 = st.columns(3)
@@ -570,7 +570,6 @@ with tab4:
         if len(st.session_state.transactions) > 20:
             with st.spinner("Analyzing statistical distribution shift..."):
                 try:
-                    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
                     ref_path = os.path.abspath(os.path.join(BASE_DIR, "../ml/models_registry/historical_transactions.csv"))
                     ref_df = pd.read_csv(ref_path)
                     curr_df = pd.DataFrame(st.session_state.transactions)
