@@ -75,6 +75,8 @@ Fraud Detection/
 
 ## 🚀 Quick Start Guide
 
+For a migration-friendly setup path, start with [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md). For a compact system map, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 Follow these steps to run the pipeline end-to-end:
 
 ### 1. Provision Infrastructure
@@ -90,8 +92,8 @@ docker ps
 ### 2. Configure Virtual Environment & Install Requirements
 Create a local Python virtual environment and install the unified dependencies:
 ```bash
-python -m venv venv
-venv\Scripts\activate
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -106,6 +108,10 @@ Train the supervised/unsupervised traditional models and the PyTorch sequence mo
 ```bash
 python ml/train_model.py
 python ml/train_lstm.py
+```
+Refresh model evaluation metrics without retraining:
+```bash
+python ml/evaluate_model.py
 ```
 
 ### 5. Run the Real-Time Streaming Pipeline
@@ -127,6 +133,26 @@ Activate the virtual environment across **3 separate terminals**:
 ### 6. Interact with the Dashboard
 Navigate to `http://localhost:8501` to view your dashboard. Open the **🔴 Live Stream** tab and click **▶️ Start Stream** to watch transactions stream through the Medallion lakehouse and witness AI ensemble inference live!
 
+Producer modes:
+
+```bash
+# Synthetic random stream
+set PRODUCER_MODE=random
+
+# Replay PaySim-derived historical transactions with ground-truth labels
+set PRODUCER_MODE=paysim_replay
+
+# Replay PaySim data and inject occasional smurfing scenarios
+set PRODUCER_MODE=mixed
+```
+
+Optional tuning:
+
+```bash
+set STREAM_DELAY_SECONDS=0.5
+set SMURFING_INJECTION_RATE=0.05
+```
+
 ---
 
 ## 📈 Quality Assurance & Tests
@@ -134,5 +160,5 @@ All components are covered by unit tests validating Medallion stage transformati
 
 Run the test suite with:
 ```bash
-pytest
+.venv\Scripts\python -m pytest
 ```

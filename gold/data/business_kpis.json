@@ -1,8 +1,8 @@
 {
-    "total_transactions_analyzed": 0,
-    "total_fraud_blocked": 0,
-    "block_rate_percentage": 0.0,
-    "total_volume_processed": 0.0,
-    "total_fraud_blocked_volume": 0.0,
-    "avg_processing_latency_ms": 0.0
+    "total_transactions_analyzed": 674,
+    "total_fraud_blocked": 31,
+    "block_rate_percentage": 4.6,
+    "total_volume_processed": 5149197.38,
+    "total_fraud_blocked_volume": 297900.71,
+    "avg_processing_latency_ms": 43.51
 }

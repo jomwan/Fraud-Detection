@@ -11,3 +11,4 @@ redis
 neo4j
 torch
 evidently
+pytest

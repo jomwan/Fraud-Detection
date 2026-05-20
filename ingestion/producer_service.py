@@ -8,11 +8,19 @@ import random
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from confluent_kafka import Producer
-from ingestion.data_generator import generate_realtime_transaction
+from ingestion.data_generator import (
+    HISTORICAL_PATH,
+    generate_realtime_transaction,
+    generate_smurfing_sequence,
+    iter_paysim_transactions,
+)
 
 # Kafka Configuration
 conf = {'bootstrap.servers': os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092")}
 producer = Producer(conf)
+PRODUCER_MODE = os.environ.get("PRODUCER_MODE", "random").lower()
+STREAM_DELAY_SECONDS = float(os.environ.get("STREAM_DELAY_SECONDS", "1.0"))
+SMURFING_INJECTION_RATE = float(os.environ.get("SMURFING_INJECTION_RATE", "0.05"))
 
 def delivery_report(err, msg):
     """ Called once for each message produced to indicate delivery result. """
@@ -21,55 +29,40 @@ def delivery_report(err, msg):
     else:
         print(f'Message delivered to {msg.topic()} [{msg.partition()}]')
 
+def publish_transaction(tx, delay_seconds=STREAM_DELAY_SECONDS):
+    producer.produce(
+        'transactions-raw',
+        key=tx['nameOrig'],
+        value=json.dumps(tx),
+        callback=delivery_report
+    )
+    producer.poll(0)
+    if delay_seconds > 0:
+        time.sleep(delay_seconds)
+
 def start_streaming():
-    print("Starting Kafka Producer... Press Ctrl+C to stop.")
+    print(f"Starting Kafka Producer in '{PRODUCER_MODE}' mode... Press Ctrl+C to stop.")
+    paysim_stream = None
+    if PRODUCER_MODE in {"paysim_replay", "mixed"}:
+        paysim_stream = iter_paysim_transactions(HISTORICAL_PATH, loop=True)
+        print(f"Replaying PaySim transactions from {HISTORICAL_PATH}")
 
     try:
         while True:
-            # 5% chance to trigger a Smurfing Attack Sequence!
-            if random.random() < 0.05:
-                print("⚠️ INJECTING DEEP LEARNING SMURFING SEQUENCE...")
-                smurf_user = f"C_SMURF_{random.randint(100,999)}"
-                old_bal = round(random.uniform(50000, 200000), 2)
-                # Blast 5 transactions just under $10,000 quickly
-                for _ in range(5):
-                    amt = round(random.uniform(9500, 9999), 2)
-                    smurf_tx = {
-                        "type": "TRANSFER",
-                        "amount": amt,
-                        "nameOrig": smurf_user,
-                        "oldbalanceOrg": old_bal,
-                        "newbalanceOrig": max(0, round(old_bal - amt, 2)),
-                        "nameDest": random.choice([
-                            f"M{random.randint(100000000, 2100000000)}",
-                            "M_SHELL_001", "M_SHELL_002"
-                        ]),
-                        "oldbalanceDest": 0.0,
-                        "newbalanceDest": amt
-                    }
-                    old_bal = smurf_tx["newbalanceOrig"]
-                    producer.produce(
-                        'transactions-raw',
-                        key=smurf_user,
-                        value=json.dumps(smurf_tx),
-                        callback=delivery_report
-                    )
-                    producer.poll(0)
-                    time.sleep(0.2) # Fast burst
+            if PRODUCER_MODE == "paysim_replay":
+                tx = next(paysim_stream)
+                publish_transaction(tx)
+            elif PRODUCER_MODE == "mixed":
+                if random.random() < SMURFING_INJECTION_RATE:
+                    print("Injecting synthetic smurfing sequence into PaySim replay...")
+                    for smurf_tx in generate_smurfing_sequence():
+                        publish_transaction(smurf_tx, delay_seconds=0.2)
+                else:
+                    tx = next(paysim_stream)
+                    publish_transaction(tx)
             else:
-                # Generate a normal single transaction
                 tx = generate_realtime_transaction()
-
-                # Publish to Kafka
-                producer.produce(
-                    'transactions-raw',
-                    key=tx['nameOrig'],
-                    value=json.dumps(tx),
-                    callback=delivery_report
-                )
-                producer.poll(0)
-
-            time.sleep(1) # Simulate standard velocity
+                publish_transaction(tx)
     except KeyboardInterrupt:
         pass
     finally:

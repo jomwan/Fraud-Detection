@@ -92,10 +92,11 @@ def test_silver_transformer():
     df = pd.read_csv(found_files[0])
     assert len(df) == 1
     assert list(df.columns) == [
-        "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig", 
+        "event_source", "step", "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig", 
         "nameDest", "oldbalanceDest", "newbalanceDest", "velocity_5m",
         "supervised_risk", "unsupervised_risk", "sequence_risk", "combined_risk",
-        "is_fraud", "action", "reason", "processing_ms", "timestamp"
+        "is_fraud", "ground_truth_is_fraud", "prediction_correct", "prediction_outcome",
+        "action", "reason", "processing_ms", "timestamp"
     ]
     assert df.loc[0, "type"] == "CASH_OUT"
     assert bool(df.loc[0, "is_fraud"]) is True

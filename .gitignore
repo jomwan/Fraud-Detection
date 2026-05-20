@@ -18,6 +18,7 @@ paysim_data.csv
 !gold/data/fraud_by_type.csv
 !gold/data/high_risk_entities.csv
 !ml/models_registry/historical_transactions.csv
+!ml/models_registry/evaluation_report.json
 
 # Saved ML Models
 !ml/models_registry/*.pkl

@@ -83,6 +83,15 @@ def start_consumer():
 
                 # 5. Enrich Transaction with Predictions
                 tx.update(pred_results)
+                if "ground_truth_is_fraud" in tx:
+                    ground_truth = bool(tx["ground_truth_is_fraud"])
+                    tx["prediction_correct"] = bool(tx["is_fraud"] == ground_truth)
+                    tx["prediction_outcome"] = (
+                        "TRUE_POSITIVE" if tx["is_fraud"] and ground_truth else
+                        "FALSE_POSITIVE" if tx["is_fraud"] and not ground_truth else
+                        "FALSE_NEGATIVE" if (not tx["is_fraud"]) and ground_truth else
+                        "TRUE_NEGATIVE"
+                    )
 
                 # 🥈 Archival Step B: Save flattened schema-validated record to Silver
                 archive_to_silver(tx)

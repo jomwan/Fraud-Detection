@@ -1,1 +1,21 @@
 nameOrig,nameDest,amount,combined_risk,reason,timestamp
+C_SMURF_171,M_SHELL_002,9768.79,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:51:01.096546
+C_SMURF_462,M357085303,9587.9,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:51:09.053736
+C_SMURF_190,M253683056,9653.87,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:51:32.113614
+C_SMURF_723,M_SHELL_002,9619.39,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:52:29.215524
+C_SMURF_326,M917341222,9892.41,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:52:31.211540
+C_SMURF_526,M_SHELL_001,9877.47,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:52:42.240484
+C_SMURF_289,M_SHELL_001,9649.58,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:52:57.253604
+C_SMURF_113,M_SHELL_001,9628.83,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:53:07.277893
+C_SMURF_503,M_SHELL_001,9868.02,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:54:10.307192
+C_SMURF_748,M1347402790,9532.24,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:54:44.655418
+C_SMURF_896,M_SHELL_002,9847.47,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:55:01.539694
+C_SMURF_187,M_SHELL_002,9853.53,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:55:40.575021
+C_SMURF_411,M_SHELL_001,9985.86,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:55:51.605850
+C_SMURF_859,M_SHELL_002,9628.75,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T15:55:53.591195
+C_SMURF_749,M_SHELL_001,9988.73,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T16:03:05.745449
+C_SMURF_129,M2029642886,9831.87,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T16:03:19.540724
+C_SMURF_506,M435057236,9832.53,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T16:03:25.143346
+C_SMURF_542,M_SHELL_001,9823.61,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T16:03:56.151798
+C_SMURF_398,M_SHELL_001,9511.61,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T16:04:02.330318
+C_SMURF_358,M_SHELL_002,9795.78,1.0,Deep Learning: Smurfing Sequence Detected,2026-05-20T16:04:19.264748

@@ -1,0 +1,41 @@
+{
+    "generated_at": "2026-05-20T15:44:57",
+    "dataset": "registry_historical_dataset",
+    "row_count": 50000,
+    "fraud_count": 8213,
+    "fraud_rate": 0.1643,
+    "thresholds": {
+        "xgboost_fraud_probability": 0.5,
+        "isolation_forest_risk": 0.5
+    },
+    "models": {
+        "xgboost": {
+            "accuracy": 0.9947,
+            "precision": 0.9729,
+            "recall": 0.9956,
+            "f1": 0.9841,
+            "confusion_matrix": {
+                "true_negative": 41559,
+                "false_positive": 228,
+                "false_negative": 36,
+                "true_positive": 8177
+            },
+            "roc_auc": 0.9995,
+            "average_precision": 0.9978
+        },
+        "isolation_forest": {
+            "accuracy": 0.8173,
+            "precision": 0.3163,
+            "recall": 0.0964,
+            "f1": 0.1478,
+            "confusion_matrix": {
+                "true_negative": 40075,
+                "false_positive": 1712,
+                "false_negative": 7421,
+                "true_positive": 792
+            },
+            "roc_auc": 0.674,
+            "average_precision": 0.2495
+        }
+    }
+}

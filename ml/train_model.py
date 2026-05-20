@@ -3,9 +3,17 @@ import numpy as np
 from sklearn.ensemble import IsolationForest
 from xgboost import XGBClassifier
 from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split
 import networkx as nx
 import joblib
 import os
+import sys
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.append(PROJECT_ROOT)
+
+from ml.evaluate_model import generate_evaluation_report
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODELS_DIR = os.path.join(BASE_DIR, 'models_registry')
@@ -44,14 +52,32 @@ def train():
 
     print("Preprocessing data...")
     X, y, le_type = preprocess_data(df)
+    stratify_target = y if y.nunique() > 1 else None
+    X_train, X_eval, y_train, y_eval = train_test_split(
+        X,
+        y,
+        test_size=0.2,
+        random_state=42,
+        stratify=stratify_target
+    )
 
     print("Training Supervised XGBoost Model...")
     xgb_model = XGBClassifier(n_estimators=100, max_depth=4, learning_rate=0.1, random_state=42)
-    xgb_model.fit(X, y)
+    xgb_model.fit(X_train, y_train)
 
     print("Training Unsupervised Isolation Forest Model...")
     iso_model = IsolationForest(contamination=0.05, random_state=42)
-    iso_model.fit(X)
+    iso_model.fit(X_train)
+
+    print("Generating holdout model evaluation report...")
+    generate_evaluation_report(
+        xgb_model=xgb_model,
+        iso_model=iso_model,
+        X_eval=X_eval,
+        y_eval=y_eval,
+        output_path=os.path.join(MODELS_DIR, 'evaluation_report.json'),
+        dataset_name="holdout_20_percent"
+    )
 
     print(f"Saving models and graph metadata to {MODELS_DIR}...")
     os.makedirs(MODELS_DIR, exist_ok=True)

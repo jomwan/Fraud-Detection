@@ -11,10 +11,11 @@ _lock = threading.Lock()
 
 # Define standard columns to enforce consistent schema
 SCHEMA_COLUMNS = [
-    "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig", 
+    "event_source", "step", "type", "amount", "nameOrig", "oldbalanceOrg", "newbalanceOrig", 
     "nameDest", "oldbalanceDest", "newbalanceDest", "velocity_5m",
     "supervised_risk", "unsupervised_risk", "sequence_risk", "combined_risk",
-    "is_fraud", "action", "reason", "processing_ms", "timestamp"
+    "is_fraud", "ground_truth_is_fraud", "prediction_correct", "prediction_outcome",
+    "action", "reason", "processing_ms", "timestamp"
 ]
 
 def archive_to_silver(enriched_tx: dict):
