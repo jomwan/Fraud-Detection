@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+venv/
+.venv/
+env/
+.env
+
+# Large Datasets and Logs
+paysim_data.csv
+*.csv
+*.jsonl
+*.json
+!gold/data/business_kpis.json
+!gold/data/fraud_by_type.csv
+!gold/data/high_risk_entities.csv
+!ml/models_registry/historical_transactions.csv
+
+# Saved ML Models
+!ml/models_registry/*.pkl
+!ml/models_registry/*.pth
